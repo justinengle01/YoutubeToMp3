@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -17,14 +18,41 @@ using Windows.UI.Xaml.Navigation;
 
 namespace YoutubeToMp3
 {
-    /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
-    /// </summary>
-    public sealed partial class MainPage : Page
+  /// <summary>
+  /// An empty page that can be used on its own or navigated to within a Frame.
+  /// </summary>
+  public sealed partial class MainPage : Page
+  {
+    public string savePath;
+    private const string choosePath = "Please select a path";
+    public MainPage()
     {
-        public MainPage()
-        {
-            this.InitializeComponent();
-        }
+      this.InitializeComponent();
+      ApplicationView.PreferredLaunchViewSize = new Size(1000, 500);
+      ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
+      txtPath.Text = choosePath;
     }
+
+    private async void btnBrowse_Click(object sender, RoutedEventArgs e)
+    {
+
+      var folderPicker = new Windows.Storage.Pickers.FolderPicker();
+      folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.MusicLibrary;
+      folderPicker.FileTypeFilter.Add("*");
+
+      Windows.Storage.StorageFolder folder = await folderPicker.PickSingleFolderAsync();
+      if (folder != null)
+      {
+        Windows.Storage.AccessCache.StorageApplicationPermissions.
+        FutureAccessList.AddOrReplace("PickedFolderToken", folder);
+        txtPath.Text =  folder.Path;
+        savePath = folder.Path;
+      }
+      else
+      {
+        txtPath.Text = choosePath;
+      }
+
+    }
+  }
 }
