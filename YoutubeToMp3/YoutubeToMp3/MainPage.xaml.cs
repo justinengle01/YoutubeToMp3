@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using VideoLibrary;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.Popups;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -23,23 +25,51 @@ namespace YoutubeToMp3
   /// <summary>
   /// An empty page that can be used on its own or navigated to within a Frame.
   /// </summary>
+  /// 
+
+
+
+   /*
+    
+     
+     CURRENTLY CAN JUST DOWNLOAD VIDEOS     
+     
+     
+     */
+
+
+
+
+
+
+
+
+
+
+
   public sealed partial class MainPage : Page
   {
-    public string savePath;
+    public string savePath = string.Empty;
     private const string choosePath = "Please select a path";
+    public IEnumerable<YouTubeVideo> videos;
+    public YouTubeVideo currentVideo;
+   
     public MainPage()
     {
       this.InitializeComponent();
-      ApplicationView.PreferredLaunchViewSize = new Size(1000, 500);
+      ApplicationView.PreferredLaunchViewSize = new Size(1000, 300);
       ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
       txtPath.Text = choosePath;
+      ToggleProgressBar(false, "");
+
+      showMessageBox("This app only has access to the following folder, so please save there: Documents, Music, Pictures, Videos, Desktop ");
     }
 
     private async void btnBrowse_Click(object sender, RoutedEventArgs e)
     {
 
       var folderPicker = new Windows.Storage.Pickers.FolderPicker();
-      folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Desktop;
+      folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.VideosLibrary;
       folderPicker.FileTypeFilter.Add("*");
 
       Windows.Storage.StorageFolder folder = await folderPicker.PickSingleFolderAsync();
@@ -61,12 +91,27 @@ namespace YoutubeToMp3
 
     private async void btnDetails_Click(object sender, RoutedEventArgs e)
     {
-      DataContext = null;
-     var youTube = YouTube.Default; // starting point for YouTube actions
-      ToggleProgressRing(true);     
-      var video = await youTube.GetVideoAsync(txtURL.Text); // gets a Video object with info about the video
-      DataContext = video;
-      ToggleProgressRing(false);
+      ProgressDesc.Text = string.Empty;
+      ProgressDesc.Visibility = Visibility.Collapsed;
+      if (savePath != string.Empty)
+      {
+        DownloadArea.Visibility = Visibility.Collapsed;
+        DataContext = null;
+        var youTube = YouTube.Default; // starting point for YouTube actions
+        ToggleProgressRing(true);
+        videos = await youTube.GetAllVideosAsync(txtURL.Text); // gets a Video object with info about the video
+        var videoViewModels = videos.Select(v => new VideoViewModel(v))
+                                           .ToList();
+        videoSelection.ItemsSource = videoViewModels.Where(v => !v.Description.Contains("-1"));
+        DataContext = videos.ToArray()[0];
+        ToggleProgressRing(false);
+        DownloadArea.Visibility = Visibility.Visible;
+      }
+      else
+      {
+        showMessageBox("Where must I save to? Please select a valid path");
+      }
+    
     }
 
     private void ToggleProgressRing(bool active)
@@ -86,11 +131,58 @@ namespace YoutubeToMp3
       progress.IsActive = active;
       progress.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
       waitingTxt.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+      Title.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void btnDownload_Click(object sender, RoutedEventArgs e)
+    private async void btnDownload_Click(object sender, RoutedEventArgs e)
     {
 
+      if (videoSelection.SelectedIndex != -1)
+      {
+        ToggleProgressBar(true, "Downloading...");
+        byte[] bytes = await currentVideo.GetBytesAsync();
+        ToggleProgressBar(true, "Saving Video...");
+        await WriteToDisk(bytes);
+        ToggleProgressBar(true, "Converting...");
+        ToggleProgressBar(false, string.Empty);
+        ProgressDesc.Text = "DONE";
+        ProgressDesc.Visibility = Visibility.Visible;
+      }
+      else
+      {
+        showMessageBox("You do know YouTube has multiple quality options? Please select one");
+      }
+     
+    }
+    private async Task WriteToDisk(byte[] bytes)
+    {
+      await Task.Run(() =>
+      {
+
+        File.WriteAllBytes($"{savePath}/{currentVideo.FullName}", bytes);
+      });
+    }
+    private void ToggleProgressBar(bool active, string description)
+    {
+      ProgressDesc.Text = description;
+      downloadProgress.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+      ProgressDesc.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void videoSelection_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+      if(videoSelection.SelectedIndex > -1)
+      {
+        currentVideo = videos.ToList()[videoSelection.SelectedIndex];
+      }
+     
+
+    }
+
+    private void showMessageBox(string msg)
+    {
+      var msgBox = new MessageDialog(msg);
+      msgBox.ShowAsync();
     }
   }
 }
