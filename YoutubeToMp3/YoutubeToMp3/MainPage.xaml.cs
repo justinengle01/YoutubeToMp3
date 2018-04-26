@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using VideoLibrary;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Storage;
 using Windows.UI.Popups;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
@@ -53,11 +54,11 @@ namespace YoutubeToMp3
     private const string choosePath = "Please select a path";
     public IEnumerable<YouTubeVideo> videos;
     public YouTubeVideo currentVideo;
-   
+    Windows.Storage.StorageFolder storageFolder =     Windows.Storage.ApplicationData.Current.LocalFolder;
     public MainPage()
     {
       this.InitializeComponent();
-      ApplicationView.PreferredLaunchViewSize = new Size(1000, 300);
+      ApplicationView.PreferredLaunchViewSize = new Size(1000, 450);
       ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
       txtPath.Text = choosePath;
       ToggleProgressBar(false, "");
@@ -158,8 +159,7 @@ namespace YoutubeToMp3
     {
       await Task.Run(() =>
       {
-
-        File.WriteAllBytes($"{savePath}/{currentVideo.FullName}", bytes);
+        File.WriteAllBytes($"{storageFolder.Path}/{currentVideo.FullName}", bytes);      
       });
     }
     private void ToggleProgressBar(bool active, string description)
